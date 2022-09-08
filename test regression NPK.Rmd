@@ -1,0 +1,235 @@
+---
+title: "test regression NPK"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(metafor)
+library(ggplot2)
+```
+
+```{r}
+read.csv("MyData(NPK).csv", header = TRUE)
+```
+```{r}
+Precipitation<-MyData_NPK_$`Precipitation level`
+Precipitation
+SMR<-MyData_NPK_$`Soil moisture regime`
+SMR
+Genus<-MyData_NPK_$Genus
+Genus
+PLU<-MyData_NPK_$`Previous land use/disturbance`
+PLU
+accession<-MyData_NPK_$accession
+accession
+WT<-MyData_NPK_$Wood_type
+WT
+Age<-MyData_NPK_$Age
+Age
+Net_effect_of_NPK_on_biomass<-MyData_NPK_$LRR
+Net_effect_of_NPK_on_biomass
+AM<-MyData_NPK_$AM
+```
+## Treatment effect size computation
+```{r}
+rma.mv(MyData_NPK_$LRR, MyData_NPK_$LRR_var,random = ~1|accession, data = MyData_NPK_)
+```
+
+## Categorical moderators analysis
+# Soil moisture regime
+```{r}
+rma.mv(MyData_NPK_$LRR, MyData_NPK_$LRR_var,random = ~1|accession, mods = ~ SMR-1, data = MyData_NPK_)
+# we observed that the soil moisture regime had a significant influence on effect the treatment on biomass (NPK fertilization). When fertilization was done in regions with a PERUDIC and UDIC soil moisture regime , the biomass was increased by 54% and 39% respectively. Soils with a perudic water regime are saturated with water while soils with a UDIC soil moisture regimes are usually humid and do not require irggation. 
+```
+
+# Previous land use
+```{r}
+rma.mv(MyData_NPK_$LRR, MyData_NPK_$LRR_var,random = ~1|accession, mods = ~ PLU-1, data = MyData_NPK_)
+# We observed that when previously harvested land were then fertilized with NPK, it increases the biomass by 55%. During harvest a lot a nutrients are removed from soils ( some studies have documnented this phenomenon). This means that in those situations, the nutrient that are added by chemical fertlization can constitute the nutrient pool from which the plants will grow, explaining the difference in biomass accumulation between non-fertlized and fertilized plants. 
+```
+# Tree genus
+```{r}
+rma.mv(MyData_NPK_$LRR, MyData_NPK_$LRR_var,random = ~1|accession, mods = ~Genus-1, data = MyData_NPK_)
+#NPK fertlization was even more beneficial when it was used on Eucalyptus, Pinus and Pseudotsugae genuses. Indeed, the biomass level was 36% higher in the treatment than the control when used in Eucalyptus plantations. When it comes to Pinus plantations,the biomass increased by 52%, relative to the control . When the fertilization was done on Pseudotsugae, it increases the biomass by 46%.
+```
+# Wood type
+```{r}
+rma.mv(MyData_NPK_$LRR, MyData_NPK_$LRR_var,random = ~1|accession, mods = ~ WT-1, data = MyData_NPK_)
+#We observed that the wood type had a significant influence on the effect of fertlization (see this from the omnibus test result and p-value). When conifers were fertilized, there were an increase in biomass of 40% in the fertilized stands relative to the control. When it comes to hardwoods, when fertilization was carried out, it increases the biomass by about 29.5%
+```
+# Application method
+```{r}
+rma.mv(MyData_NPK_$LRR, MyData_NPK_$LRR_var,random = ~1|accession, mods = ~AM-1, data = MyData_NPK_)
+```
+
+### Figure 3 NPK moderators
+```{r}
+read.csv("NPKforestmoderators.csv", header = TRUE)
+library(ggplot2)
+```
+
+```{r}
+overall_effectNPK<-NPKforestmoderators$estimate_exp
+overall_effectNPK
+ModeratorNPK<-NPKforestmoderators$Moderator
+ModeratorNPK
+lower<-NPKforestmoderators$lower
+upper<-NPKforestmoderators$upper
+NPKforestmoderators$Group<-factor(NPKforestmoderators$Group, levels = c("Overall effect", "Soil moisture regime", "Previous land use","Tree genus","Application method","Wood type"))
+```
+
+```{r}
+forest_NPK<-ggplot(NPKforestmoderators)+geom_pointrange(aes(x=overall_effectNPK, y = ModeratorNPK, 
+                      xmin = lower, 
+                      xmax = upper))+
+  geom_vline(aes(xintercept = 0), linetype = 2, colour = "red") + 
+  facet_wrap(facets = ~NPKforestmoderators$Group, 
+             ncol = 1, 
+             strip.position = 'right', 
+             scales = "free_y")+
+  scale_x_continuous(name="Per cent change in tree aboveground carbon stocks from NPK fertilization", limits=c(-50, 460), breaks = c(-100,-80,-40,0,40,80,120,160,200,240,280,320,360, 400,440,480))+
+  scale_y_discrete(name="")+
+  theme(legend.position = "none",
+        strip.background =element_rect(colour = "black",
+                                       fill = "light blue"))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(text = element_text(size=25))+
+  theme(strip.text.y.right=element_text(angle = 0))+
+  theme(strip.text.y.right=element_text(size = 20))+
+  theme(panel.background = element_rect(fill = "white"))+
+  theme(panel.border = element_rect(fill = NA, colour = "gray" ))
+forest_NPK
+```
+## Saving Figure 3 as a JPEG file
+```{r}
+ggsave("forestNPK.jpg", forest_NPK, device = "jpeg", height = 15, width = 15)
+```
+
+### Continuous moderators analysis
+
+## Figure 4: Regression with time since treatment for NPK fertlizer treatment 
+```{r}
+MyData_NPK_<-read.csv("MyData(NPK_TST).csv") %>%
+  clean_names() 
+```
+```{r}
+mdl_NPK <- rma.mv(MyData_NPK_$lrr, 
+                 MyData_NPK_$lrr_var, 
+                 random = ~1|accession, 
+                 mods = ~MyData_NPK_$tst, 
+                 data = MyData_NPK_)
+mdl_NPK
+```
+
+```{r}
+coefs <- coefficients(mdl_NPK)
+ses <- mdl_NPK$se
+
+fitLine <- data.frame(x = 0:max(MyData_NPK_$tst),
+                      y = coefs[1] + coefs[2]*0:max(MyData_NPK_$tst),
+                      yLow = (coefs[1]-1.96*ses[1]) + (coefs[2]-1.96*ses[2])*0:max(MyData_NPK_$tst),
+                      yHigh = (coefs[1]+1.96*ses[1]) + (coefs[2]+1.96*ses[2])*0:max(MyData_NPK_$tst))
+
+# Draw the plot with 95% confidence interval using ggplot2
+
+p_NPK <- ggplot(data = MyData_NPK_) +
+  geom_point(aes(x = tst, y = lrr)) +
+  xlab("Time since fertilization (years)") +
+  ylab("ln(RR) of change in AGC stocks") +
+  geom_ribbon(data = fitLine, aes(x = x, ymin = yLow, ymax = yHigh), fill = "blue", alpha = 0.2) +  # Add the 95% Confidence Interval using geom_ribbon
+  geom_line(data = fitLine, aes(x = x, y = y), col = "black") +
+  geom_hline(aes(yintercept = 0), linetype = 2, colour = "red")+
+  scale_x_continuous(breaks = c(0.5,1,1.5,2,2.5,3,3.5,4,4.5,5))+
+  scale_y_continuous(breaks = c(-0.25, 0, 0.25, 0.5, 0.75, 1,1.25,1.5))+
+# Add the best fit line
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())   # Remove grid from panel (up to you if you want to keep)
+  
+p_NPK
+
+# Save as .jpeg
+
+ggsave("TSTNPK.jpg", p_NPK, device = "jpeg", height = 6, width = 8.5)
+```
+## Figure 5 manuscript code (Net C balance of fertilized stands vs N applied)
+```{r}
+p_napplied<-ggplot(NPK_Co2_emisions, aes(n_applied,netC))+
+geom_point(size=1)+
+   geom_smooth(method = "lm", se= TRUE, col="black", fill="blue")+
+  labs(x="N applied (Mg/ha) ", y = "Net C balance of fertilized stands (MgCO2e/ha)")+
+  geom_hline(aes(yintercept = 0), linetype = 2, colour = "red") + 
+   theme(panel.border = element_rect(colour = "black", fill = NA))+
+   scale_x_continuous(breaks = c(0,0.25, 0.5,0.75, 1,1.25, 1.5, 1.75))+
+   theme(panel.background = element_blank())+
+  theme_classic()
+p_napplied
+ggsave("CbalancevsNapplied.jpg", p_napplied, device = "jpeg", height = 6, width = 8.5)
+```
+## Regression model for n-applied versus net C balance of fertilized stands
+```{r}
+model<-lm(agcgrowth ~ n_applied, data = NPK_Co2_emisions)
+model
+summary(model)
+```
+
+## Regression with "stand age" for studies where NPK fertlizers where applied continously over the experiment 
+```{r}
+read.csv("MyData(NPK_Age).csv", header = TRUE)
+```
+```{r}
+Age<-MyData_NPK_Age_$Age
+```
+```{r}
+rma.mv(MyData_NPK_Age_$LRR, MyData_NPK_Age_$LRR_var,random = ~1|accession, mods = ~Age, data = MyData_NPK_Age_)
+```
+```{r}
+plot(MyData_NPK_Age_$LRR~Age, data=MyData_NPK_Age_, xlab="Stand age (years)", ylab= "ln(RR) of change in aboveground carbon of plantation trees")
+points(MyData_NPK_Age_$Age, fitted(rma.mv(MyData_NPK_Age_$LRR, MyData_NPK_Age_$LRR_var,random = ~1|accession, mods = ~ Age, data = MyData_NPK_Age_)), pch="x", col="red")
+abline(coefficientsrma.mv(MyData_NPK_Age_$LRR, MyData_NPK_Age_$LRR_var,random = ~1|accession, mods = ~ Age, data = MyData_NPK_Age_))+
+  theme(axis.title.x = element_text(size = 80))+
+  theme(axis.title.y = element_text(size = 80))
+```
+# Regression with Precipitation predictor
+```{r}
+rma.mv(MyData_NPK_$LRR, MyData_NPK_$LRR_var,random = ~1|accession, mods = ~ Precipitation, data = MyData_NPK_)
+```
+
+```{r}
+tiff("PrecipitationRegressionNPK", units="in", width=10, height=10, res=300)
+plot(MyData_NPK_$LRR~Precipitation, data=MyData_NPK_, xlab="Precipitation (mm/yr)", ylab= "ln(RR) of change in aboveground carbon of plantation trees")
+points(MyData_NPK_$`Precipitation level`, fitted(rma.mv(MyData_NPK_$LRR, MyData_NPK_$LRR_var,random = ~1|accession, mods = ~ Precipitation, data = MyData_NPK_)), pch="x", col="red")
+abline(coefficients(rma.mv(MyData_NPK_$LRR, MyData_NPK_$LRR_var,random = ~1|accession, mods = ~ Precipitation, data = MyData_NPK_)))+
+  theme(axis.title.x = element_text(size = 80))+
+  theme(axis.title.y = element_text(size = 80))
+```
+
+## Figure S4.3
+```{r}
+read.csv("NPK_Co2_emisions.csv", header = TRUE) %>%
+  clean_names() 
+```
+
+```{r}
+n_applied<-NPK_Co2_emisions$`N applied in treated plots (MgN/ha)`
+agcgrowth<-NPK_Co2_emisions$`ACG growth (MgCo2e/ha)`
+fertilizers_emissions<-NPK_Co2_emisions$`Total CO2 emissions (MgCo2e/ha)`
+netC<-NPK_Co2_emisions$`Difference between CO2 absorbed vs emitted`
+accession<-NPK_Co2_emisions$accession
+group<-NPK_Co2_emisions$Group
+```
+
+```{r}
+p_emissions<-ggplot(NPK_Co2_emisions, aes(netC, y=factor(0)))+
+  geom_boxplot(color="black", fill="light blue")+
+  geom_jitter(color="blue", size=0.4,alpha=0.9)+
+  labs(x="Net C balance of fertilized stands (MgCO2e/ha)", y = "")+
+   theme(panel.background = element_blank())+
+  scale_x_continuous(breaks = c(-20,-15,-10,-5,0,5,10,15,20,25,30,35,40,45))+ geom_vline(aes(xintercept = 0), linetype = 2, colour = "red") + 
+  theme_classic()+
+  theme(axis.text.y = element_blank(), axis.ticks.y=element_blank(), axis.title.y = element_blank())
+  
+p_emissions
+ggsave("Net C balance.jpg", p_emissions, device = "jpeg", height = 4, width = 10)
+```

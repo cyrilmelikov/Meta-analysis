@@ -1,0 +1,180 @@
+---
+title: "test regression TH"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(metafor)
+library(ggplot2)
+```
+
+```{r}
+read.csv("MyData(TH).csv", header = TRUE)
+```
+```{r}
+SMR<-MyData_TH_$SMR
+SMR
+PLU<-MyData_TH_$PLU
+PLU
+Precipitation<-MyData_TH_$Precipitation
+Precipitation
+accession<-MyData_TH_$accession
+accession
+WT<-MyData_TH_$WT
+WT
+Age<-MyData_TH_$Age
+Age
+Genus<-MyData_TH_$Genus
+Genus
+TST<-MyData_TH_$TST
+```
+### Treatment effect size computation
+```{r}
+rma.mv(MyData_TH_$LRR, MyData_TH_$LRR_var,random = ~1|accession, data = MyData_TH_)
+```
+### Continuous moderators analysis
+
+#Figure 7: Regression with Time Since Treatment
+```{r}
+MyData_TH_<-read.csv("MyData(TH).csv") %>%
+  clean_names() 
+```
+```{r}
+mdl_TH <- rma.mv(MyData_TH_$lrr, 
+                 MyData_TH_$lrr_var, 
+                 random = ~1|accession, 
+                 mods = ~MyData_TH_$tst, 
+                 data = MyData_TH_)
+mdl_TH
+```
+
+```{r}
+coefs <- coefficients(mdl_TH)
+ses <- mdl_TH$se
+
+fitLine <- data.frame(x = 1:max(MyData_TH_$tst),
+                      y = coefs[1] + coefs[2]*1:max(MyData_TH_$tst),
+                      yLow = (coefs[1]-1.96*ses[1]) + (coefs[2]-1.96*ses[2])*1:max(MyData_TH_$tst),
+                      yHigh = (coefs[1]+1.96*ses[1]) + (coefs[2]+1.96*ses[2])*1:max(MyData_TH_$tst))
+
+# Draw the plot with 95% confidence interval using ggplot2
+
+p_TH <- ggplot(data = MyData_TH_) +
+  geom_point(aes(x = tst, y = lrr)) +
+  xlab("Time since thinning (years)") +
+  ylab("ln(RR) of change in AGC stocks") +
+  geom_ribbon(data = fitLine, aes(x = x, ymin = yLow, ymax = yHigh), fill = "blue", alpha = 0.2) +  # Add the 95% Confidence Interval using geom_ribbon
+  geom_line(data = fitLine, aes(x = x, y = y), col = "black") +
+  geom_hline(aes(yintercept = 0), linetype = 2, colour = "red")+
+  scale_x_continuous(breaks = c(2,4,6,8,10,12,14,16))+
+  scale_y_continuous(breaks = c(-1.5, -1.25, -1, -0.75, -0.5, -0.25, 0,0.25))+
+# Add the best fit line
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())   # Remove grid from panel (up to you if you want to keep)
+  
+p_TH
+
+# Save as .jpeg
+
+ggsave("TSTTH.jpg", p_TH, device = "jpeg", height = 6, width = 8.5)
+```
+
+## Figure S4.5: Regression with Precipitation 
+```{r}
+rma.mv(MyData_TH_$LRR, MyData_TH_$LRR_var,random = ~1|accession,mods = ~Precipitation,data = MyData_TH_)
+```
+```{r}
+tiff("THRegressionPrecipitationEffect", units="in", width=15, height=10, res=300)
+rma.mv(MyData_TH_$LRR, MyData_TH_$LRR_var,random = ~1|accession,mods = ~Precipitation,data = MyData_TH_)
+plot(MyData_TH_$LRR~MyData_TH_$Precipitation, data=MyData_TH_, xlab="Precipitation (mm/yr)", ylab="ln(RR) of change in aboveground biomass of plantations")
+points(MyData_TH_$Precipitation, fitted(rma.mv(MyData_TH_$LRR, MyData_TH_$LRR_var,random = ~1|accession,mods = ~Precipitation,data = MyData_TH_)), pch="x", col="red")
+abline(coefficients(rma.mv(MyData_TH_$LRR, MyData_TH_$LRR_var,random = ~1|accession,mods = ~Precipitation,data = MyData_TH_)))
+```
+## Analysis of categorical moderators
+```{r}
+rma.mv(MyData_TH_$LRR, MyData_TH_$LRR_var,random = ~1|accession,mods = ~SMR-1,data = MyData_TH_)
+```
+```{r}
+rma.mv(MyData_TH_$LRR, MyData_TH_$LRR_var,random = ~1|accession,mods = ~PLU-1,data = MyData_TH_)
+```
+```{r}
+rma.mv(MyData_TH_$LRR, MyData_TH_$LRR_var,random = ~1|accession,mods = ~WT-1,data = MyData_TH_)
+```
+```{r}
+rma.mv(MyData_TH_$LRR, MyData_TH_$LRR_var,random = ~1|accession,mods = ~Genus-1,data = MyData_TH_)
+```
+
+##Figure 6: summary figure for Thinning treatment
+```{r}
+read.csv("THForestModerators.csv", header = TRUE)
+```
+
+```{r}
+overall_effectTH<-THForestModerators$estimate_exp
+overall_effect
+ModeratorTH<-THForestModerators$Moderator
+ModeratorTH
+lower<-THForestModerators$lower
+upper<-THForestModerators$upper
+THForestModerators$Group<-factor(THForestModerators$Group, levels = c("Overall effect", "Soil moisture regime", "Previous land use","Tree genus","Wood type"))
+```
+
+```{r}
+forest_thinning<-ggplot(THForestModerators)+geom_pointrange(aes(x=overall_effectTH, y = ModeratorTH, 
+                      xmin = lower, 
+                      xmax = upper))+
+  geom_vline(aes(xintercept = 0), linetype = 2, colour = "red") + 
+  facet_wrap(facets = ~THForestModerators$Group, 
+             ncol = 1, 
+             strip.position = 'right', 
+             scales = "free_y")+
+  scale_x_continuous(name="Per cent change in stand aboveground carbon stocks from thinning", limits=c(-90, 70), breaks = c(-90,-80,-70,-60,-50,-40,-30,-20,-10,10,20,30,40,50,60,70))+
+  scale_y_discrete(name="")+
+  theme(legend.position = "none",
+        strip.background =element_rect(colour = "black",
+                                       fill = " indian red 1"))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(text = element_text(size=25))+
+  theme(strip.text.y.right=element_text(angle = 0))+
+  theme(strip.text.y.right=element_text(size = 25))+
+  theme(panel.background = element_rect(fill = "white"))+
+  theme(panel.border = element_rect(fill = NA, colour = "gray" ))
+forest_thinning
+```
+
+```{r}
+#saving figure as a jpeg
+ggsave("forestThinning.jpg", forest_thinning, device = "jpeg", height = 15, width = 15)
+```
+
+## Figure S1.1 : All sites location
+```{r}
+library(maps)
+library(ggplot2)
+read_csv("All Site locations.csv")
+df3<-All_Site_locations
+TR<-df3$Treatment
+```
+
+```{r}
+mp <- NULL
+mapWorld <- borders("world", colour="grey68", fill="white") # create a layer of borders
+mp <- ggplot() +   mapWorld
+mp
+```
+```{r}
+mp <- mp + geom_point(aes(x= df3$Longitude, y=df3$Latitude, color= factor(TR)), size= 1)+
+theme(panel.background = element_rect(fill = "white"))+
+  theme(text = element_text(size=15))+
+  theme(legend.position = "top")+
+  labs(colour="")+
+  scale_color_manual(labels= c("N-fixing studies","NPK studies", "Thinning studies"), 
+                     values= c(" forest green", "blue", "red"))
+mp
+```
+```{r}
+#saving site location map as a jpeg
+ggsave("Allsitelocations.jpg", mp, device = "jpeg", height = 6, width = 8.5)
+```
